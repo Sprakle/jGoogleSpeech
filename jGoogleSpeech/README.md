@@ -11,6 +11,7 @@ so expect bugs. It's a fairly simple library though (not far from being
 a wrapper), so it shoudn't be to difficult to fix.
 
 How the library works:
+
 	1) GoogleSpeech is initialized. The microphone line is opened.
 	
 	2) When GoogleSpeech.listenForSpeech() is called, the capture thread
