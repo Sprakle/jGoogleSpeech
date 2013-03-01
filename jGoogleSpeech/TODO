@@ -1,0 +1,19 @@
+Recording should only start after the RMS threshold has been passed for
+a period of time. Speech from before recording starts should also be
+added as well.
+
+Analogy:
+	You have a security camera and a vibration sensor installed.
+	
+	The security camera feed is constantly saved on to a hard drive, but
+		any data over 5 minutes old is deleted.
+		
+	If the motion sensor is tripped, a new permanent video file is
+		created, with the last 5 minutes stuck on to the beginning.
+		Video is now saved onto this new file (after the first 5
+		minutes).
+
+	Analogy > Capture.java:
+		Camera feed > javax.sound.sampled.TargetDataLine
+		5 minute save > byte[] preBuffer
+		Permanent video file > java.io.ByteArrayOutputStream
