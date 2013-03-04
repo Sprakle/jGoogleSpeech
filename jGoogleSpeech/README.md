@@ -1,6 +1,5 @@
-						    jGoogleSpeech
-					    Ben Cracknell (Sprakle)
-========================================================================
+jGoogleSpeech
+======
 
 Uses Google's speech recognition API to return microphone input as text.
 WARNING: Google speech API is not official,and may change, breaking this
@@ -11,6 +10,7 @@ so expect bugs. It's a fairly simple library though (not far from being
 a wrapper), so it shoudn't be to difficult to fix.
 
 How the library works:
+----
 
 	1) GoogleSpeech is initialized. The microphone line is opened.
 	
@@ -37,6 +37,7 @@ How the library works:
 		classes.
 	
 Things you should know:
+----
 
 	In order for the library to work, you need to create a class
 		implementing "net.sprakle.jGoogleSpeech.Logger". This was done
