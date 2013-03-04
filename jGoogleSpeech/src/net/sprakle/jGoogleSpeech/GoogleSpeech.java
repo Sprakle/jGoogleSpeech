@@ -3,7 +3,6 @@ package net.sprakle.jGoogleSpeech;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
@@ -12,7 +11,7 @@ import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.TargetDataLine;
 
 public class GoogleSpeech implements CaptureObserver {
-	private ArrayList<GoogleSpeechObserver> observers;
+	private String speech;
 
 	private AudioFormat format;
 	private DataLine.Info info;
@@ -34,8 +33,6 @@ public class GoogleSpeech implements CaptureObserver {
 		this.logger = logger;
 		this.thresholds = thresholds;
 		this.SAMPLE_RATE = SAMPLE_RATE;
-
-		observers = new ArrayList<GoogleSpeechObserver>();
 
 		// setup encoder and speech recognition engine
 		flac = new Flac(logger, SAMPLE_RATE, BIT_RATE);
@@ -71,6 +68,8 @@ public class GoogleSpeech implements CaptureObserver {
 	// captureThread will monitor sound levels for pauses, and notify the main thread 
 	public void listenForSpeech() {
 		if (capture == null) {
+			speech = null;
+
 			capture = new Capture(logger, line, thresholds);
 			capture.addObserver(this);
 			capture.start();
@@ -100,17 +99,11 @@ public class GoogleSpeech implements CaptureObserver {
 		if (result == null) {
 			listenForSpeech();
 		} else {
-			updateObservers(result);
+			speech = result;
 		}
 	}
 
-	private void updateObservers(String speech) {
-		for (GoogleSpeechObserver gso : observers) {
-			gso.speechUpdate(speech);
-		}
-	}
-
-	public void addObserver(GoogleSpeechObserver observer) {
-		observers.add(observer);
+	public String getSpeech() {
+		return speech;
 	}
 }

@@ -1,11 +1,10 @@
 package main;
 
 import net.sprakle.jGoogleSpeech.GoogleSpeech;
-import net.sprakle.jGoogleSpeech.GoogleSpeechObserver;
 import net.sprakle.jGoogleSpeech.Logger;
 import net.sprakle.jGoogleSpeech.RecordThresholds;
 
-public class Main implements GoogleSpeechObserver {
+public class Main {
 	// RMS of audio that must be above to begin recording
 	private final float RECORD_START_RMS_THRESHOLD = 10;
 	private final float RECORD_START_TIME_THRESHOLD = 100; // does nothing yet, recording starts as soon as threshold is passed
@@ -28,16 +27,33 @@ public class Main implements GoogleSpeechObserver {
 
 		Output output = new Output();
 		gs = new GoogleSpeech(output, thresholds, SAMPLE_RATE);
-		gs.addObserver(this);
 		gs.listenForSpeech();
+
+		Listener listener = new Listener();
+		listener.start();
 	}
 
-	@Override
-	public void speechUpdate(String speech) {
-		System.out.println("User said: '" + speech + "'");
+	class Listener extends Thread {
+		@Override
+		public void run() {
 
-		// start recording again
-		gs.listenForSpeech();
+			while (true) {
+
+				String s = gs.getSpeech();
+				if (s != null) {
+					System.out.println("Got speech: " + s);
+
+					// continue listening
+					gs.listenForSpeech();
+				}
+
+				try {
+					sleep(100);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+		}
 	}
 
 	class Output implements Logger {

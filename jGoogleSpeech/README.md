@@ -33,12 +33,10 @@ How the library works:
 		Google, who sends back a json formatted file. GoogleSubmit
 		returns the spoken phrase in a String. 
 		
-	6) GoogleSpeech alerts any observers, passing the spoken phrase.
+	6) GoogleSpeech updates (String) speech, which can be read from other
+		classes.
 	
 Things you should know:
-	To get updates when things are spoken, simply implement
-		GoogleSpeechObserver. You can call GoogleSpeech.listenForSpeech()
-		after being updated if you want continuous recognition.
 
 	In order for the library to work, you need to create a class
 		implementing "net.sprakle.jGoogleSpeech.Logger". This was done
