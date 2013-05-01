@@ -23,16 +23,18 @@ public class GoogleSpeech implements CaptureObserver {
 
 	private final int SAMPLE_RATE;
 	private final int BIT_RATE = 8;
+	private final int prependBytes;
 
 	private Flac flac;
 	private GoogleSubmit googleSubmit;
 
 	private Logger logger;
 
-	public GoogleSpeech(Logger logger, RecordThresholds thresholds, int SAMPLE_RATE) {
+	public GoogleSpeech(Logger logger, RecordThresholds thresholds, int SAMPLE_RATE, int prependBytes) {
 		this.logger = logger;
 		this.thresholds = thresholds;
 		this.SAMPLE_RATE = SAMPLE_RATE;
+		this.prependBytes = prependBytes;
 
 		// setup encoder and speech recognition engine
 		flac = new Flac(logger, SAMPLE_RATE, BIT_RATE);
@@ -43,7 +45,7 @@ public class GoogleSpeech implements CaptureObserver {
 		info = new DataLine.Info(TargetDataLine.class, format); // format is an AudioFormat object
 
 		if (!AudioSystem.isLineSupported(info)) {
-			logger.log("Line not supported");
+			logger.log(true, "Audio line not supported");
 		}
 
 		// Obtain and open microphone line.
@@ -51,7 +53,7 @@ public class GoogleSpeech implements CaptureObserver {
 			line = AudioSystem.getTargetDataLine(format);
 			line.open(format);
 		} catch (LineUnavailableException ex) {
-			logger.log("line unavailable");
+			logger.log(true, "Audio line unavailable");
 		}
 
 		line.start();
@@ -70,26 +72,25 @@ public class GoogleSpeech implements CaptureObserver {
 		if (capture == null) {
 			speech = null;
 
-			capture = new Capture(logger, line, thresholds);
+			capture = new Capture(logger, line, thresholds, prependBytes);
 			capture.addObserver(this);
 			capture.start();
 		} else {
-			logger.log("Cannot start again thread untill it is finished");
+			logger.log(true, "Cannot start again thread untill it is finished");
 		}
 	}
 
 	// called when speech has ended
 	@Override
 	public void update(ByteArrayOutputStream out) {
-		logger.log("recording ended");
-
 		File audio = flac.saveFlac(out.toByteArray());
 
 		String result = null;
+
 		try {
 			result = googleSubmit.submit(audio, SAMPLE_RATE);
 		} catch (IOException e) {
-			logger.log("Problem sending FLAC to Google speech API");
+			logger.log(true, "Problem sending FLAC to Google speech API");
 			e.printStackTrace();
 		}
 

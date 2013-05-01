@@ -1,39 +1,52 @@
 package net.sprakle.jGoogleSpeech;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 
 import javax.sound.sampled.TargetDataLine;
 
 class Capture extends Thread {
-	Logger logger;
+	private Logger logger;
 
 	// RMS of audio that must be above to begin recording
 	private RecordThresholds thresholds;
 
-	ByteArrayOutputStream out;
-	TargetDataLine line;
+	private ByteArrayOutputStream out;
+	private TargetDataLine line;
+
+	// bytes the will be prepended to the record stream after triggering
+	private ByteArrayOutputStream prebuffer;
+
+	private int bytesToPrepend;
 
 	//An arbitrary-size temporary holding buffer
-	byte tempBuffer[] = new byte[500];
+	private byte tempBuffer[] = new byte[500];
 
 	// used to check if speech is over
-	boolean silence = false;
-	long silenceTime = 0;
-	long prevSilenceCheckTime;
+	private boolean silence = false;
+	private long silenceTime = 0;
+	private long prevSilenceCheckTime;
 
-	boolean capture = true;
-	boolean record = false;
+	private boolean capture = true;
+	private boolean record = false;
 
-	ArrayList<CaptureObserver> observers;
+	// the period of noise is after the RMS has just passed the threshold, but before it has triggered recording
+	private long noiseStartTime;
+	private boolean noise;
 
-	public Capture(Logger logger, TargetDataLine line, RecordThresholds thresholds) {
+	private ArrayList<CaptureObserver> observers;
+
+	Capture(Logger logger, TargetDataLine line, RecordThresholds thresholds, int bytesToPrepend) {
 		this.logger = logger;
 		this.line = line;
 		this.thresholds = thresholds;
+		this.bytesToPrepend = bytesToPrepend;
 
 		observers = new ArrayList<CaptureObserver>();
 		out = new ByteArrayOutputStream();
+
+		prebuffer = new ByteArrayOutputStream();
 	}
 
 	@Override
@@ -58,23 +71,74 @@ class Capture extends Thread {
 		int cnt = line.read(tempBuffer, 0, tempBuffer.length);
 
 		if (cnt > 0) {
+
+			// records audio before the trigger, so it can be added to the start of the recoding
+			prebuffer.write(tempBuffer, 0, cnt);
+
 			float rms = calculateRMSLevel(tempBuffer);
 
-			// start recording when speech is detected
-			if (rms > thresholds.RECORD_START_RMS_THRESHOLD && !record) {
-				record = true;
-				logger.log("recording");
+			// if the RMS level passes the threshold, begin the timer to ensure it stays past for the required time
+			if (rms > thresholds.RECORD_START_RMS_THRESHOLD && !record && !noise) {
+				noise = true;
+				noiseStartTime = System.currentTimeMillis();
+			}
+
+			// as long as the RMS is past the threshold
+			if (noise) {
+
+				// check if the RMS has been past the threshold for long enough yet
+				long totalTime = System.currentTimeMillis() - noiseStartTime;
+				if (totalTime > thresholds.RECORD_START_TIME_THRESHOLD) {
+
+					// start recording
+					record = true;
+					noise = false;
+
+					// takes recent noise and adds it to the record stream before recording
+					prependNoise();
+
+					logger.log(false, "Recording started. Prepended " + bytesToPrepend + " bytes.");
+				}
+
+				// check if the RMS has dropped below the threshold
+				if (rms < thresholds.RECORD_START_RMS_THRESHOLD) {
+
+					// cancel timer
+					noise = false;
+				}
 			}
 
 			if (record) {
-
-				// record speech
 				out.write(tempBuffer, 0, cnt);
 
 				if (shouldEnd(rms)) {
+					record = false;
+					noise = false;
 					capture = false;
+
+					logger.log(false, "Recording ended");
 				}
 			}
+		}
+	}
+
+	private void prependNoise() {
+		byte[] preBufferArray = prebuffer.toByteArray();
+		ByteArrayOutputStream preNoise = new ByteArrayOutputStream();
+
+		int prependIndex = preBufferArray.length - bytesToPrepend;
+		if (prependIndex < 0)
+			prependIndex = 0;
+
+		for (int i = prependIndex; i < preBufferArray.length; i++) {
+			byte b = preBufferArray[i];
+			preNoise.write(b);
+		}
+
+		try {
+			preNoise.writeTo(out);
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -82,7 +146,6 @@ class Capture extends Thread {
 		if (rms < thresholds.RECORD_END_RMS_THRESHOLD) {
 
 			if (!silence) {
-
 				silence = true;
 				prevSilenceCheckTime = System.currentTimeMillis();
 			}
@@ -95,6 +158,7 @@ class Capture extends Thread {
 			silenceTime += difference;
 
 			if (silenceTime > thresholds.RECORD_END_TIME_THRESHOLD) {
+				silence = false;
 				return true;
 			}
 
@@ -104,8 +168,8 @@ class Capture extends Thread {
 		return false;
 	}
 
-	private float calculateRMSLevel(byte[] audioData)
-	{
+	private float calculateRMSLevel(byte[] audioData) {
+
 		// audioData might be buffered data read from a data line
 		long lSum = 0;
 		for (int i = 0; i < audioData.length; i++)

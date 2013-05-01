@@ -28,7 +28,7 @@ class GoogleSubmit {
 	public String submit(File audio, int sampleRate) throws ClientProtocolException, IOException {
 		String result = null;
 		long startTime = System.currentTimeMillis();
-		logger.log("Begun submit to Google speech API");
+		logger.log(false, "Begun submit to Google speech API");
 
 		httpClient = new DefaultHttpClient();
 
@@ -40,10 +40,10 @@ class GoogleSubmit {
 			extension = fileName.substring(i + 1);
 
 			if (!extension.equals("flac")) {
-				logger.log("Can only submit flac files");
+				logger.log(true, "Can only submit flac files");
 			}
 		} else {
-			logger.log("Can only submit flac files");
+			logger.log(true, "Can only submit flac files");
 		}
 
 		HttpPost httppost = new HttpPost(URL);
@@ -56,16 +56,15 @@ class GoogleSubmit {
 		HttpResponse response = httpClient.execute(httppost);
 		String status = response.getStatusLine().toString();
 		if (status.contains("failed")) {
-			logger.log("No speech detected");
+			logger.log(false, "No speech detected");
 			return null;
 		}
 
 		String responseString = getResponseString(response);
 		result = parseForUtterance(responseString);
 
-		logger.log("Finished submit to Google speech API. Result: " + status);
-		long endTime = System.currentTimeMillis();
-		logger.log("Total time taken to communicate with Google: " + (endTime - startTime) + "ms");
+		long totalTime = System.currentTimeMillis() - startTime;
+		logger.log(false, "Finished submit to Google speech API in " + totalTime + "ms. Result: " + status);
 		return result;
 	}
 	private String getResponseString(HttpResponse httpResponse) throws IllegalStateException, IOException {
